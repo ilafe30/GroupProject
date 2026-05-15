@@ -102,14 +102,68 @@ export default function Ranking() {
   };
 
   const totalWeight = skills.reduce((sum, s) => sum + Number(s.weight), 0);
+  const [rankingResults, setRankingResults] = useState<any[]>([]);
 
-  const runModel = () => {
+  const runModel = async () => {
+  try {
     setIsRunning(true);
-    setTimeout(() => {
-      setIsRunning(false);
-      setShowResults(true);
-    }, 4000);
-  };
+    setShowResults(false);
+
+    const projectSkills: Record<string, number> = {};
+
+    skills.forEach((s) => {
+      if (s.label.trim()) {
+        projectSkills[s.label.trim()] = Number(s.weight);
+      }
+    });
+
+    const payload = {
+      project: {
+        title: projectTitle,
+        skills: projectSkills,
+      },
+
+      students: [
+        {
+          name: "Nada BELMILOUD",
+          skills: ["Python", "Machine Learning"],
+          experience: 1,
+          motivation: 0.9,
+        },
+        {
+          name: "Yacine",
+          skills: ["Java", "SQL"],
+          experience: 0,
+          motivation: 0.7,
+        },
+        {
+          name: "Sara",
+          skills: ["Python", "Data Analysis"],
+          experience: 1,
+          motivation: 0.8,
+        },
+      ],
+    };
+
+    const response = await fetch("http://127.0.0.1:8000/rank", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+
+    setRankingResults(data);
+
+    setShowResults(true);
+  } catch (error) {
+    console.error("Ranking error:", error);
+  } finally {
+    setIsRunning(false);
+  }
+};
 
   const canRun =
     skills.some((s) => s.label.trim()) &&
@@ -298,25 +352,38 @@ export default function Ranking() {
                   </div>
                   {projectTitle && <p className="text-sm text-[#5b86a2] mb-4 font-semibold">Project: {projectTitle}</p>}
                   <div className="space-y-6">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-[#0e4971] text-white flex items-center justify-center font-bold">AB</div>
-                      <div className="flex-grow">
-                        <div className="flex justify-between text-xs font-bold text-[#0e4971] mb-1">
-                          <span>Amira Benali</span>
-                          <span>94% match</span>
-                        </div>
-                        <div className="h-1.5 w-full bg-[#0e4971]/5 rounded-full overflow-hidden">
-                          <div className="h-full bg-[#f37e22] w-[94%]" />
-                        </div>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      className="w-full bg-[#0e4971]/5 text-[#0e4971] py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-[#0e4971]/10 transition-colors"
-                    >
-                      View all rankings <ChevronRight size={16} />
-                    </button>
-                  </div>
+  {rankingResults.map((student, index) => (
+    <div key={index} className="flex items-center gap-3">
+      <div className="w-10 h-10 rounded-full bg-[#0e4971] text-white flex items-center justify-center font-bold">
+        {student.name
+          .split(" ")
+          .map((n: string) => n[0])
+          .join("")
+          .slice(0, 2)}
+      </div>
+
+      <div className="flex-grow">
+        <div className="flex justify-between text-xs font-bold text-[#0e4971] mb-1">
+          <span>{student.name}</span>
+          <span>{Math.round(student.final_score * 100)}% match</span>
+        </div>
+
+        <div className="h-1.5 w-full bg-[#0e4971]/5 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-[#f37e22]"
+            style={{
+              width: `${Math.round(student.final_score * 100)}%`,
+            }}
+          />
+        </div>
+
+        <div className="text-[11px] text-[#5b86a2] mt-1">
+          Matched skills: {student.matched_skills.join(", ")}
+        </div>
+      </div>
+    </div>
+  ))}
+</div>
                 </motion.div>
               )}
             </AnimatePresence>
