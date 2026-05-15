@@ -1,0 +1,661 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model documents {
+  id             BigInt           @id @default(autoincrement())
+  file_name      String           @db.VarChar(255)
+  file_path      String           @db.Text
+  mime_type      String           @db.VarChar(255)
+  file_size      BigInt
+  uploaded_at    DateTime         @default(now()) @db.DateTime(0)
+  researcher_cvs researcher_cvs[]
+  student_cvs    student_cvs[]
+}
+
+model labs {
+  id                     BigInt   @id @default(autoincrement())
+  name                   String   @unique(map: "uq_labs_name") @db.VarChar(255)
+  short_name             String   @unique(map: "uq_labs_short_name") @db.VarChar(100)
+  description            String?  @db.Text
+  institution_name       String?  @db.VarChar(255)
+  address                String?  @db.VarChar(255)
+  general_email          String?  @db.VarChar(255)
+  student_projects_email String?  @db.VarChar(255)
+  created_at             DateTime @default(now()) @db.DateTime(0)
+  updated_at             DateTime @default(now()) @db.DateTime(0)
+  teams                  teams[]
+}
+
+model post_requirements {
+  id               BigInt                             @id @default(autoincrement())
+  post_id          BigInt
+  target_type      post_requirements_target_type
+  requirement_type post_requirements_requirement_type
+  requirement_text String                             @db.Text
+  is_mandatory     Boolean                            @default(false)
+  created_at       DateTime                           @default(now()) @db.DateTime(0)
+  project_posts    project_posts                      @relation(fields: [post_id], references: [id], onDelete: Cascade, map: "fk_post_requirements_post_id")
+
+  @@index([post_id], map: "idx_post_requirements_post_id")
+}
+
+model post_researcher_applications {
+  id                                                                              BigInt                              @id @default(autoincrement())
+  post_id                                                                         BigInt
+  project_id                                                                      BigInt
+  researcher_id                                                                   BigInt
+  status                                                                          post_researcher_applications_status @default(submitted)
+  cover_letter                                                                    String?                             @db.Text
+  applied_at                                                                      DateTime                            @default(now()) @db.DateTime(0)
+  reviewed_at                                                                     DateTime?                           @db.DateTime(0)
+  reviewed_by_researcher_id                                                       BigInt?
+  notes                                                                           String?                             @db.Text
+  project_posts                                                                   project_posts                       @relation(fields: [post_id], references: [id], onDelete: Cascade, map: "fk_post_researcher_applications_post_id")
+  projects                                                                        projects                            @relation(fields: [project_id], references: [id], onDelete: Cascade, map: "fk_post_researcher_applications_project_id")
+  researchers_post_researcher_applications_researcher_idToresearchers             researchers                         @relation("post_researcher_applications_researcher_idToresearchers", fields: [researcher_id], references: [id], onDelete: Cascade, map: "fk_post_researcher_applications_researcher_id")
+  researchers_post_researcher_applications_reviewed_by_researcher_idToresearchers researchers?                        @relation("post_researcher_applications_reviewed_by_researcher_idToresearchers", fields: [reviewed_by_researcher_id], references: [id], map: "fk_post_researcher_applications_reviewed_by_researcher_id")
+
+  @@unique([post_id, researcher_id], map: "uq_post_researcher_applications_post_researcher")
+  @@index([project_id], map: "idx_post_researcher_applications_project_id")
+  @@index([researcher_id], map: "idx_post_researcher_applications_researcher_id")
+  @@index([reviewed_by_researcher_id], map: "idx_post_researcher_applications_reviewed_by_researcher_id")
+}
+
+model post_student_applications {
+  id                        BigInt                           @id @default(autoincrement())
+  post_id                   BigInt
+  project_id                BigInt
+  student_id                BigInt
+  status                    post_student_applications_status @default(submitted)
+  cover_letter              String?                          @db.Text
+  applied_at                DateTime                         @default(now()) @db.DateTime(0)
+  reviewed_at               DateTime?                        @db.DateTime(0)
+  reviewed_by_researcher_id BigInt?
+  notes                     String?                          @db.Text
+  project_posts             project_posts                    @relation(fields: [post_id], references: [id], onDelete: Cascade, map: "fk_post_student_applications_post_id")
+  projects                  projects                         @relation(fields: [project_id], references: [id], onDelete: Cascade, map: "fk_post_student_applications_project_id")
+  researchers               researchers?                     @relation(fields: [reviewed_by_researcher_id], references: [id], map: "fk_post_student_applications_reviewed_by_researcher_id")
+  students                  students                         @relation(fields: [student_id], references: [id], onDelete: Cascade, map: "fk_post_student_applications_student_id")
+
+  @@unique([post_id, student_id], map: "uq_post_student_applications_post_student")
+  @@index([project_id], map: "idx_post_student_applications_project_id")
+  @@index([reviewed_by_researcher_id], map: "idx_post_student_applications_reviewed_by_researcher_id")
+  @@index([student_id], map: "idx_post_student_applications_student_id")
+}
+
+model project_posts {
+  id                           BigInt                         @id @default(autoincrement())
+  project_id                   BigInt
+  created_by_researcher_id     BigInt
+  title                        String                         @db.VarChar(255)
+  description                  String?                        @db.Text
+  status                       project_posts_status           @default(draft)
+  allow_students               Boolean                        @default(true)
+  allow_researchers            Boolean                        @default(false)
+  application_deadline         DateTime?                      @db.DateTime(0)
+  created_at                   DateTime                       @default(now()) @db.DateTime(0)
+  updated_at                   DateTime                       @default(now()) @db.DateTime(0)
+  post_requirements            post_requirements[]
+  post_researcher_applications post_researcher_applications[]
+  post_student_applications    post_student_applications[]
+  researchers                  researchers                    @relation(fields: [created_by_researcher_id], references: [id], map: "fk_project_posts_created_by_researcher_id")
+  projects                     projects                       @relation(fields: [project_id], references: [id], onDelete: Cascade, map: "fk_project_posts_project_id")
+  student_post_recommendations student_post_recommendations[]
+
+  @@index([created_by_researcher_id], map: "idx_project_posts_created_by_researcher_id")
+  @@index([project_id], map: "idx_project_posts_project_id")
+  @@index([status], map: "idx_project_posts_status")
+}
+
+model project_requirements {
+  id               BigInt                                @id @default(autoincrement())
+  project_id       BigInt
+  requirement_type project_requirements_requirement_type
+  requirement_text String                                @db.Text
+  is_mandatory     Boolean                               @default(false)
+  created_at       DateTime                              @default(now()) @db.DateTime(0)
+  projects         projects                              @relation(fields: [project_id], references: [id], onDelete: Cascade, map: "fk_project_requirements_project_id")
+
+  @@index([project_id], map: "idx_project_requirements_project_id")
+}
+
+model project_research_areas {
+  project_id       BigInt
+  research_area_id BigInt
+  projects         projects       @relation(fields: [project_id], references: [id], onDelete: Cascade, map: "fk_project_research_areas_project_id")
+  research_areas   research_areas @relation(fields: [research_area_id], references: [id], onDelete: Cascade, map: "fk_project_research_areas_research_area_id")
+
+  @@id([project_id, research_area_id])
+  @@index([research_area_id], map: "idx_project_research_areas_research_area_id")
+}
+
+model project_researchers {
+  id            BigInt                           @id @default(autoincrement())
+  project_id    BigInt
+  researcher_id BigInt
+  project_role  project_researchers_project_role
+  joined_at     DateTime?                        @db.DateTime(0)
+  projects      projects                         @relation(fields: [project_id], references: [id], onDelete: Cascade, map: "fk_project_researchers_project_id")
+  researchers   researchers                      @relation(fields: [researcher_id], references: [id], onDelete: Cascade, map: "fk_project_researchers_researcher_id")
+
+  @@unique([project_id, researcher_id], map: "uq_project_researchers_project_researcher")
+  @@index([project_id], map: "idx_project_researchers_project_id")
+  @@index([researcher_id], map: "idx_project_researchers_researcher_id")
+}
+
+model project_students {
+  id                 BigInt                              @id @default(autoincrement())
+  project_id         BigInt
+  student_id         BigInt
+  participation_role project_students_participation_role
+  joined_at          DateTime?                           @db.DateTime(0)
+  left_at            DateTime?                           @db.DateTime(0)
+  status             project_students_status             @default(candidate)
+  projects           projects                            @relation(fields: [project_id], references: [id], onDelete: Cascade, map: "fk_project_students_project_id")
+  students           students                            @relation(fields: [student_id], references: [id], onDelete: Cascade, map: "fk_project_students_student_id")
+
+  @@unique([project_id, student_id], map: "uq_project_students_project_student")
+  @@index([project_id], map: "idx_project_students_project_id")
+  @@index([student_id], map: "idx_project_students_student_id")
+}
+
+model project_teams {
+  project_id       BigInt
+  team_id          BigInt
+  role_description String?  @db.VarChar(255)
+  projects         projects @relation(fields: [project_id], references: [id], onDelete: Cascade, map: "fk_project_teams_project_id")
+  teams            teams    @relation(fields: [team_id], references: [id], onDelete: Cascade, map: "fk_project_teams_team_id")
+
+  @@id([project_id, team_id])
+  @@index([team_id], map: "idx_project_teams_team_id")
+}
+
+model projects {
+  id                           BigInt                         @id @default(autoincrement())
+  title                        String                         @db.VarChar(255)
+  category                     String?                        @db.VarChar(255)
+  duration_months              Int?
+  timeframe                    String?                        @db.VarChar(100)
+  application_deadline         DateTime?                      @db.DateTime(0)
+  description                  String?                        @db.Text
+  background_requirements      String?                        @db.Text
+  required_skills_text         String?                        @db.Text
+  interests_text               String?                        @db.Text
+  references_text              String?                        @db.Text
+  master_degrees_text          String?                        @db.Text
+  internship_season            String?                        @db.VarChar(100)
+  minimum_gpa                  Decimal?                       @db.Decimal(4, 2)
+  phd_funding                  Boolean                        @default(false)
+  stipend                      Boolean                        @default(false)
+  status                       projects_status                @default(draft)
+  created_by_researcher_id     BigInt
+  created_at                   DateTime                       @default(now()) @db.DateTime(0)
+  updated_at                   DateTime                       @default(now()) @db.DateTime(0)
+  post_researcher_applications post_researcher_applications[]
+  post_student_applications    post_student_applications[]
+  project_posts                project_posts[]
+  project_requirements         project_requirements[]
+  project_research_areas       project_research_areas[]
+  project_researchers          project_researchers[]
+  project_students             project_students[]
+  project_teams                project_teams[]
+  recruitment_posts            recruitment_posts[]
+  project_required_skills      project_required_skills[]
+  discussion_posts             discussion_posts[]
+  researchers                  researchers                    @relation(fields: [created_by_researcher_id], references: [id], map: "fk_projects_created_by_researcher_id")
+
+  @@index([category], map: "idx_projects_category")
+  @@index([created_by_researcher_id], map: "idx_projects_created_by_researcher_id")
+  @@index([status], map: "idx_projects_status")
+}
+
+model research_areas {
+  id                                  BigInt                      @id @default(autoincrement())
+  name                                String                      @unique(map: "uq_research_areas_name") @db.VarChar(255)
+  description                         String?                     @db.Text
+  project_research_areas              project_research_areas[]
+  researcher_research_areas           researcher_research_areas[]
+  researcher_research_areas_refactored researcher_research_areas_refactored[] @relation("researcher_research_areas_refactored")
+}
+
+model researcher_cvs {
+  id             BigInt      @id @default(autoincrement())
+  researcher_id  BigInt
+  document_id    BigInt
+  extracted_text String?     @db.Text
+  is_primary     Boolean     @default(false)
+  uploaded_at    DateTime    @default(now()) @db.DateTime(0)
+  documents      documents   @relation(fields: [document_id], references: [id], onDelete: Cascade, map: "fk_researcher_cvs_document_id")
+  researchers    researchers @relation(fields: [researcher_id], references: [id], onDelete: Cascade, map: "fk_researcher_cvs_researcher_id")
+
+  @@index([document_id], map: "idx_researcher_cvs_document_id")
+  @@index([researcher_id], map: "idx_researcher_cvs_researcher_id")
+}
+
+model researcher_research_areas {
+  researcher_id    BigInt
+  research_area_id BigInt
+  research_areas   research_areas @relation(fields: [research_area_id], references: [id], onDelete: Cascade, map: "fk_rra_research_area_id")
+  researchers      researchers    @relation(fields: [researcher_id], references: [id], onDelete: Cascade, map: "fk_rra_researcher_id")
+
+  @@id([researcher_id, research_area_id])
+  @@index([research_area_id], map: "idx_rra_research_area_id")
+}
+
+model researcher_skills {
+  researcher_id BigInt
+  skill_id      BigInt
+  source        researcher_skills_source @default(manual)
+  confidence    Decimal                  @default(1.0000) @db.Decimal(5, 4)
+  researchers   researchers              @relation(fields: [researcher_id], references: [id], onDelete: Cascade, map: "fk_researcher_skills_researcher_id")
+  skills        skills                   @relation(fields: [skill_id], references: [id], onDelete: Cascade, map: "fk_researcher_skills_skill_id")
+
+  @@id([researcher_id, skill_id])
+  @@index([skill_id], map: "idx_researcher_skills_skill_id")
+}
+
+model researchers {
+  id                                                                                               BigInt                         @id @default(autoincrement())
+  first_name                                                                                       String                         @db.VarChar(100)
+  last_name                                                                                        String                         @db.VarChar(100)
+  email                                                                                            String                         @unique(map: "uq_researchers_email") @db.VarChar(255)
+  password_hash                                                                                    String                         @db.VarChar(255)
+  institution                                                                                      String?                        @db.VarChar(255)
+  bio                                                                                              String?                        @db.Text
+  global_role                                                                                      researchers_global_role        @default(none)
+  profile_image_url                                                                                String?                        @db.Text
+  is_active                                                                                        Boolean                        @default(true)
+  created_at                                                                                       DateTime                       @default(now()) @db.DateTime(0)
+  updated_at                                                                                       DateTime                       @default(now()) @db.DateTime(0)
+  post_researcher_applications_post_researcher_applications_researcher_idToresearchers             post_researcher_applications[] @relation("post_researcher_applications_researcher_idToresearchers")
+  post_researcher_applications_post_researcher_applications_reviewed_by_researcher_idToresearchers post_researcher_applications[] @relation("post_researcher_applications_reviewed_by_researcher_idToresearchers")
+  post_student_applications                                                                        post_student_applications[]
+  project_posts                                                                                    project_posts[]
+  project_researchers                                                                              project_researchers[]
+  projects                                                                                         projects[]
+  researcher_cvs                                                                                   researcher_cvs[]
+  researcher_research_areas                                                                        researcher_research_areas[]
+  researcher_skills                                                                                researcher_skills[]
+  team_memberships                                                                                 team_memberships[]
+  recruitment_posts                                                                                recruitment_posts[]
+  researcher_research_areas_refactored                                                             researcher_research_areas_refactored[] @relation("researcher_research_areas_refactored")
+  discussion_posts_researcher                                                                      discussion_posts[] @relation("discussion_posts_researcher")
+}
+
+model skills {
+  id                               BigInt              @id @default(autoincrement())
+  name                             String              @unique(map: "uq_skills_name") @db.VarChar(255)
+  description                      String?             @db.Text
+  researcher_skills                researcher_skills[]
+  student_skills                   student_skills[]
+  project_required_skills          project_required_skills[]
+  recruitment_post_required_skills recruitment_post_required_skills[]
+}
+
+model student_cvs {
+  id             BigInt    @id @default(autoincrement())
+  student_id     BigInt
+  document_id    BigInt
+  extracted_text String?   @db.Text
+  is_primary     Boolean   @default(false)
+  uploaded_at    DateTime  @default(now()) @db.DateTime(0)
+  documents      documents @relation(fields: [document_id], references: [id], onDelete: Cascade, map: "fk_student_cvs_document_id")
+  students       students  @relation(fields: [student_id], references: [id], onDelete: Cascade, map: "fk_student_cvs_student_id")
+
+  @@index([document_id], map: "idx_student_cvs_document_id")
+  @@index([student_id], map: "idx_student_cvs_student_id")
+}
+
+model student_post_recommendations {
+  id            BigInt        @id @default(autoincrement())
+  student_id    BigInt
+  post_id       BigInt
+  score         Decimal       @db.Decimal(5, 4)
+  reason        String?       @db.Text
+  model_version String?       @db.VarChar(100)
+  generated_at  DateTime      @default(now()) @db.DateTime(0)
+  project_posts project_posts @relation(fields: [post_id], references: [id], onDelete: Cascade, map: "fk_student_post_recommendations_post_id")
+  students      students      @relation(fields: [student_id], references: [id], onDelete: Cascade, map: "fk_student_post_recommendations_student_id")
+
+  @@index([post_id], map: "idx_student_post_recommendations_post_id")
+  @@index([student_id], map: "idx_student_post_recommendations_student_id")
+}
+
+model student_skills {
+  student_id BigInt
+  skill_id   BigInt
+  source     student_skills_source @default(manual)
+  confidence Decimal               @default(1.0000) @db.Decimal(5, 4)
+  skills     skills                @relation(fields: [skill_id], references: [id], onDelete: Cascade, map: "fk_student_skills_skill_id")
+  students   students              @relation(fields: [student_id], references: [id], onDelete: Cascade, map: "fk_student_skills_student_id")
+
+  @@id([student_id, skill_id])
+  @@index([skill_id], map: "idx_student_skills_skill_id")
+}
+
+model students {
+  id                           BigInt                         @id @default(autoincrement())
+  first_name                   String                         @db.VarChar(100)
+  last_name                    String                         @db.VarChar(100)
+  email                        String                         @unique(map: "uq_students_email") @db.VarChar(255)
+  password_hash                String                         @db.VarChar(255)
+  institution                  String?                        @db.VarChar(255)
+  bio                          String?                        @db.Text
+  gpa                          Decimal?                       @db.Decimal(4, 2)
+  profile_image_url            String?                        @db.Text
+  is_active                    Boolean                        @default(true)
+  created_at                   DateTime                       @default(now()) @db.DateTime(0)
+  updated_at                   DateTime                       @default(now()) @db.DateTime(0)
+  post_student_applications    post_student_applications[]
+  project_students             project_students[]
+  student_cvs                  student_cvs[]
+  student_post_recommendations student_post_recommendations[]
+  student_skills               student_skills[]
+  discussion_posts_student     discussion_posts[] @relation("discussion_posts_student")
+}
+
+model team_memberships {
+  id              BigInt                           @id @default(autoincrement())
+  team_id         BigInt
+  researcher_id   BigInt
+  membership_role team_memberships_membership_role
+  joined_at       DateTime?                        @db.Date
+  left_at         DateTime?                        @db.Date
+  is_active       Boolean                          @default(true)
+  notes           String?                          @db.Text
+  researchers     researchers                      @relation(fields: [researcher_id], references: [id], onDelete: Cascade, map: "fk_team_memberships_researcher_id")
+  teams           teams                            @relation(fields: [team_id], references: [id], onDelete: Cascade, map: "fk_team_memberships_team_id")
+
+  @@unique([team_id, researcher_id], map: "uq_team_memberships_team_researcher")
+  @@index([researcher_id], map: "idx_team_memberships_researcher_id")
+  @@index([team_id], map: "idx_team_memberships_team_id")
+}
+
+model teams {
+  id               BigInt             @id @default(autoincrement())
+  lab_id           BigInt
+  name             String             @unique(map: "uq_teams_name") @db.VarChar(255)
+  description      String?            @db.Text
+  is_active        Boolean            @default(true)
+  created_at       DateTime           @default(now()) @db.DateTime(0)
+  updated_at       DateTime           @default(now()) @db.DateTime(0)
+  project_teams    project_teams[]
+  team_memberships team_memberships[]
+  labs             labs               @relation(fields: [lab_id], references: [id], map: "fk_teams_lab_id")
+
+  @@index([lab_id], map: "idx_teams_lab_id")
+}
+
+enum post_requirements_target_type {
+  student
+  researcher
+  both
+}
+
+enum project_requirements_requirement_type {
+  skill
+  background
+  interest
+  degree
+  other
+}
+
+enum researcher_skills_source {
+  manual
+  cv_nlp
+  inferred
+}
+
+enum student_skills_source {
+  manual
+  cv_nlp
+  inferred
+}
+
+enum post_requirements_requirement_type {
+  skill
+  background
+  interest
+  degree
+  experience
+  other
+}
+
+enum project_researchers_project_role {
+  owner
+  principal_investigator
+  collaborator
+  mentor
+  director
+}
+
+enum project_students_participation_role {
+  candidate
+  intern
+  assistant
+  student_researcher
+}
+
+enum team_memberships_membership_role {
+  member
+  leader
+  co_leader
+}
+
+enum post_researcher_applications_status {
+  submitted
+  under_review
+  shortlisted
+  accepted
+  rejected
+  withdrawn
+}
+
+enum post_student_applications_status {
+  submitted
+  under_review
+  shortlisted
+  accepted
+  rejected
+  withdrawn
+}
+
+enum project_posts_status {
+  draft
+  open
+  closed
+  archived
+}
+
+enum project_students_status {
+  candidate
+  active
+  completed
+  withdrawn
+}
+
+enum researchers_global_role {
+  admin
+  member
+  team_leader
+  none
+}
+
+enum projects_status {
+  draft
+  open
+  closed
+  archived
+}
+
+enum recruitment_collaboration_type {
+  student
+  researcher
+  both
+}
+
+enum recruitment_post_status {
+  draft
+  open
+  closed
+  filled
+  archived
+}
+
+enum discussion_post_visibility {
+  private
+  project_members
+  public
+}
+
+enum skill_source {
+  predefined
+  manual
+}
+
+enum research_area_source {
+  predefined
+  manual
+}
+
+/// Tags for organizing posts
+model tags {
+  id                      BigInt                    @id @default(autoincrement())
+  name                    String                    @unique(map: "uq_tags_name") @db.VarChar(255)
+  description             String?                   @db.Text
+  created_at              DateTime                  @default(now()) @db.DateTime(0)
+  recruitment_post_tags   recruitment_post_tags[]
+  discussion_post_tags    discussion_post_tags[]
+
+  @@map("tags")
+}
+
+/// Recruitment posts (only researchers can create, tied to projects)
+model recruitment_posts {
+  id                           BigInt                         @id @default(autoincrement())
+  project_id                   BigInt
+  created_by_researcher_id     BigInt
+  title                        String                         @db.VarChar(255)
+  description                  String?                        @db.Text
+  collaboration_type          recruitment_collaboration_type @default(student)
+  deadline                     DateTime?                      @db.DateTime(0)
+  status                       recruitment_post_status        @default(draft)
+  created_at                   DateTime                       @default(now()) @db.DateTime(0)
+  updated_at                   DateTime                       @default(now()) @db.DateTime(0)
+  
+  projects                     projects                       @relation(fields: [project_id], references: [id], onDelete: Cascade, map: "fk_recruitment_posts_project_id")
+  researchers                  researchers                    @relation(fields: [created_by_researcher_id], references: [id], map: "fk_recruitment_posts_created_by_researcher_id")
+  recruitment_post_tags        recruitment_post_tags[]
+  recruitment_post_required_skills recruitment_post_required_skills[]
+
+  @@index([project_id], map: "idx_recruitment_posts_project_id")
+  @@index([created_by_researcher_id], map: "idx_recruitment_posts_created_by_researcher_id")
+  @@index([status], map: "idx_recruitment_posts_status")
+  @@map("recruitment_posts")
+}
+
+/// Join table: recruitment_posts to tags
+model recruitment_post_tags {
+  recruitment_post_id BigInt
+  tag_id              BigInt
+  recruitment_posts   recruitment_posts @relation(fields: [recruitment_post_id], references: [id], onDelete: Cascade, map: "fk_recruitment_post_tags_post_id")
+  tags                tags              @relation(fields: [tag_id], references: [id], onDelete: Cascade, map: "fk_recruitment_post_tags_tag_id")
+
+  @@id([recruitment_post_id, tag_id])
+  @@index([tag_id], map: "idx_recruitment_post_tags_tag_id")
+  @@map("recruitment_post_tags")
+}
+
+/// Discussion posts (students or researchers can create, project optional)
+model discussion_posts {
+  id                        BigInt                    @id @default(autoincrement())
+  project_id                BigInt?
+  created_by_researcher_id  BigInt?
+  created_by_student_id     BigInt?
+  title                     String                    @db.VarChar(255)
+  description               String?                   @db.Text
+  visibility                discussion_post_visibility @default(public)
+  created_at                DateTime                  @default(now()) @db.DateTime(0)
+  updated_at                DateTime                  @default(now()) @db.DateTime(0)
+  
+  projects                  projects?                 @relation(fields: [project_id], references: [id], onDelete: SetNull, map: "fk_discussion_posts_project_id")
+  researcher_author         researchers?              @relation("discussion_posts_researcher", fields: [created_by_researcher_id], references: [id], onDelete: SetNull, map: "fk_discussion_posts_researcher_id")
+  student_author            students?                 @relation("discussion_posts_student", fields: [created_by_student_id], references: [id], onDelete: SetNull, map: "fk_discussion_posts_student_id")
+  discussion_post_tags      discussion_post_tags[]
+
+  @@index([project_id], map: "idx_discussion_posts_project_id")
+  @@index([created_by_researcher_id], map: "idx_discussion_posts_researcher_id")
+  @@index([created_by_student_id], map: "idx_discussion_posts_student_id")
+  @@map("discussion_posts")
+}
+
+/// Join table: discussion_posts to tags
+model discussion_post_tags {
+  discussion_post_id BigInt
+  tag_id             BigInt
+  discussion_posts   discussion_posts @relation(fields: [discussion_post_id], references: [id], onDelete: Cascade, map: "fk_discussion_post_tags_post_id")
+  tags               tags             @relation(fields: [tag_id], references: [id], onDelete: Cascade, map: "fk_discussion_post_tags_tag_id")
+
+  @@id([discussion_post_id, tag_id])
+  @@index([tag_id], map: "idx_discussion_post_tags_tag_id")
+  @@map("discussion_post_tags")
+}
+
+/// Required skills for projects (supports predefined and manual)
+model project_required_skills {
+  id                  BigInt        @id @default(autoincrement())
+  project_id          BigInt
+  skill_id            BigInt?
+  manual_skill_name   String?       @db.VarChar(255)
+  source              skill_source  @default(predefined)
+  is_mandatory        Boolean       @default(false)
+  created_at          DateTime      @default(now()) @db.DateTime(0)
+  
+  projects            projects      @relation(fields: [project_id], references: [id], onDelete: Cascade, map: "fk_project_required_skills_project_id")
+  skills              skills?       @relation(fields: [skill_id], references: [id], onDelete: SetNull, map: "fk_project_required_skills_skill_id")
+
+  @@index([project_id], map: "idx_project_required_skills_project_id")
+  @@index([skill_id], map: "idx_project_required_skills_skill_id")
+  @@map("project_required_skills")
+}
+
+/// Required skills for recruitment posts (supports predefined and manual)
+model recruitment_post_required_skills {
+  id                  BigInt             @id @default(autoincrement())
+  recruitment_post_id BigInt
+  skill_id            BigInt?
+  manual_skill_name   String?            @db.VarChar(255)
+  source              skill_source       @default(predefined)
+  is_mandatory        Boolean            @default(false)
+  created_at          DateTime           @default(now()) @db.DateTime(0)
+  
+  recruitment_posts   recruitment_posts  @relation(fields: [recruitment_post_id], references: [id], onDelete: Cascade, map: "fk_recruitment_post_required_skills_post_id")
+  skills              skills?            @relation(fields: [skill_id], references: [id], onDelete: SetNull, map: "fk_recruitment_post_required_skills_skill_id")
+
+  @@index([recruitment_post_id], map: "idx_recruitment_post_required_skills_post_id")
+  @@index([skill_id], map: "idx_recruitment_post_required_skills_skill_id")
+  @@map("recruitment_post_required_skills")
+}
+
+/// Refactored researcher research areas (supports predefined and manual)
+model researcher_research_areas_refactored {
+  id                      BigInt                  @id @default(autoincrement())
+  researcher_id           BigInt
+  research_area_id        BigInt?
+  manual_research_area    String?                 @db.VarChar(255)
+  source                  research_area_source    @default(predefined)
+  created_at              DateTime                @default(now()) @db.DateTime(0)
+  
+  researchers             researchers             @relation("researcher_research_areas_refactored", fields: [researcher_id], references: [id], onDelete: Cascade, map: "fk_researcher_research_areas_ref_researcher_id")
+  research_areas          research_areas?         @relation("researcher_research_areas_refactored", fields: [research_area_id], references: [id], onDelete: SetNull, map: "fk_researcher_research_areas_ref_area_id")
+
+  @@index([researcher_id], map: "idx_researcher_research_areas_ref_researcher_id")
+  @@index([research_area_id], map: "idx_researcher_research_areas_ref_area_id")
+  @@map("researcher_research_areas_refactored")
+}
