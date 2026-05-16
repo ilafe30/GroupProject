@@ -1,9 +1,9 @@
 """
-cv_extractor.py  —  CV extraction server (Anthropic Claude backend)
+cv_extractor.py  —  CV extraction server (Groq/Llama backend)
 ====================================================================
 
 FIRST TIME SETUP (run in your terminal once):
-    pip install pdfplumber pytesseract pdf2image opencv-python flask flask-cors anthropic
+    pip install pdfplumber pytesseract pdf2image opencv-python flask flask-cors groq
 
 SYSTEM DEPENDENCIES (Windows):
     1. Tesseract: https://github.com/UB-Mannheim/tesseract/wiki
@@ -18,14 +18,17 @@ macOS / Linux:
     sudo apt install tesseract-ocr poppler-utils  # Ubuntu
 
 TO START THE SERVER:
-    set ANTHROPIC_API_KEY=sk-ant-...   (Windows CMD)
-    export ANTHROPIC_API_KEY=sk-ant-...  (macOS/Linux)
+    set GROQ_API_KEY=gsk_...   (Windows CMD)
+    export GROQ_API_KEY=gsk_...  (macOS/Linux)
     python cv_extractor.py
 
-Server runs at http://localhost:5000
+Server runs at http://localhost:5001
 """
 
 import os
+from dotenv import load_dotenv
+load_dotenv()
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 import re
 import json
 
@@ -39,10 +42,15 @@ if os.name == "nt":
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
-app = Flask(__name__)
-CORS(app)  # allow React dev server (localhost:3000 / 5173) to call this
 
-ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+app = Flask(__name__)
+CORS(app, resources={r"/*": {"origins": [
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://localhost:3001"
+]}})
+
+
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -95,24 +103,24 @@ def extract_text(pdf_path: str) -> str:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 2. STRUCTURED PARSING WITH CLAUDE (Anthropic)
+# 2. STRUCTURED PARSING WITH GROQ / LLAMA
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def parse_with_claude(raw_text: str) -> dict:
+def parse_with_groq(raw_text: str) -> dict:
     """
-    Sends raw CV text to Claude claude-sonnet-4-5 and returns a structured dict
+    Sends raw CV text to Llama 3.3 via Groq and returns a structured dict
     matching the React SignUpPage form schema exactly.
     """
-    import anthropic
+    from groq import Groq
 
-    if not ANTHROPIC_API_KEY:
+    if not GROQ_API_KEY:
         raise ValueError(
-            "ANTHROPIC_API_KEY is not set.\n"
-            "  Windows:  set ANTHROPIC_API_KEY=sk-ant-...\n"
-            "  macOS/Linux: export ANTHROPIC_API_KEY=sk-ant-..."
+            "GROQ_API_KEY is not set.\n"
+            "  Windows:    set GROQ_API_KEY=gsk_...\n"
+            "  macOS/Linux: export GROQ_API_KEY=gsk_..."
         )
 
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    client = Groq(api_key=GROQ_API_KEY)
 
     prompt = f"""You are an expert CV parser. Extract all information from the CV below.
 
@@ -170,13 +178,14 @@ Rules:
 CV TEXT:
 {raw_text}"""
 
-    message = client.messages.create(
-        model="claude-sonnet-4-5",
-        max_tokens=2048,
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
         messages=[{"role": "user", "content": prompt}],
+        temperature=0,
+        max_tokens=2000,
     )
 
-    raw = message.content[0].text.strip()
+    raw = response.choices[0].message.content.strip()
 
     # Strip accidental markdown fences the model sometimes adds
     raw = re.sub(r"^```json\s*", "", raw, flags=re.MULTILINE)
@@ -196,10 +205,10 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 @app.route("/health", methods=["GET"])
 def health():
-    """Quick check — open http://localhost:5000/health in your browser."""
+    """Quick check — open http://localhost:5001/health in your browser."""
     return jsonify({
         "status": "ok",
-        "anthropic_key_set": bool(ANTHROPIC_API_KEY),
+        "groq_key_set": bool(GROQ_API_KEY),
     })
 
 
@@ -215,7 +224,6 @@ def extract_endpoint():
 
     uploaded = request.files["file"]
 
-    # ── validation ──────────────────────────────────────────────────────────
     if not uploaded.filename.lower().endswith(".pdf"):
         return jsonify({"error": "Only PDF files are accepted."}), 400
 
@@ -225,14 +233,13 @@ def extract_endpoint():
     MB = 1024 * 1024
     if len(content) > 20 * MB:
         return jsonify({"error": "File too large. Maximum size is 20 MB."}), 413
-    # ────────────────────────────────────────────────────────────────────────
 
     tmp_path = os.path.join(UPLOAD_FOLDER, uploaded.filename)
     uploaded.save(tmp_path)
 
     try:
         raw_text = extract_text(tmp_path)
-        profile  = parse_with_claude(raw_text)
+        profile  = parse_with_groq(raw_text)
         return jsonify(profile)
 
     except json.JSONDecodeError:
@@ -250,19 +257,20 @@ def extract_endpoint():
 
 if __name__ == "__main__":
     print("=" * 58)
-    print("  ENSIA Research Hub — CV Extractor (Claude backend)")
+    print("  ENSIA Research Hub — CV Extractor (Groq/Llama backend)")
     print("=" * 58)
 
-    if not ANTHROPIC_API_KEY:
-        print("\n⚠️  WARNING: ANTHROPIC_API_KEY is not set!")
-        print("   Windows  : set ANTHROPIC_API_KEY=sk-ant-...")
-        print("   macOS/Linux: export ANTHROPIC_API_KEY=sk-ant-...\n")
+    if not GROQ_API_KEY:
+        print("\n⚠️  WARNING: GROQ_API_KEY is not set!")
+        print("   Get a free key at: console.groq.com")
+        print("   Windows:    set GROQ_API_KEY=gsk_...")
+        print("   macOS/Linux: export GROQ_API_KEY=gsk_...\n")
     else:
-        print("  ✓ Anthropic API key loaded")
+        print("  ✓ Groq API key loaded")
 
-    print(f"\n  Listening on:  http://localhost:5000")
-    print(f"  Health check:  http://localhost:5000/health")
-    print(f"  Extract route: POST http://localhost:5000/extract")
+    print(f"\n  Listening on:  http://localhost:5001")
+    print(f"  Health check:  http://localhost:5001/health")
+    print(f"  Extract route: POST http://localhost:5001/extract")
     print("=" * 58 + "\n")
 
-    app.run(host="0.0.0.0", port=5000, debug=False)
+    app.run(host="0.0.0.0", port=5001, debug=False)

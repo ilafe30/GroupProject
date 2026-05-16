@@ -17,6 +17,7 @@ import skillRoutes from './routes/skills';
 import researchAreaRoutes from './routes/researchAreas';
 import applicationRoutes from './routes/applications';
 
+
 config();
 
 const app = express();
@@ -60,6 +61,7 @@ app.use('/api/teams', teamRoutes);
 app.use('/api/skills', skillRoutes);
 app.use('/api/research-areas', researchAreaRoutes);
 app.use('/api/applications', applicationRoutes);
+
 
 app.use((_req, res) => {
   res.status(404).json({ success: false, message: 'Route not found' });
