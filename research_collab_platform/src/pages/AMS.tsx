@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { Search, Check, X, Sparkles, AlertCircle } from "lucide-react";
+import { Search, Check, X, Sparkles, AlertCircle, Mail } from "lucide-react";
 import { useState, useEffect } from "react";
 import { api } from "../lib/api";
 
@@ -117,12 +117,11 @@ export default function AMS() {
     try {
       await api.request({
         url: `/applications/${id}`,
-        method: 'PUT',
+        method: 'PATCH',
         data: { status: 'accepted' }
       });
-      setApplications(prev =>
-        prev.map(app => app.id === id ? { ...app, status: 'accepted' } : app)
-      );
+      // Update accepted status in-place
+      setApplications(prev => prev.map(app => app.id === id ? { ...app, status: 'accepted' } : app));
     } catch (err) {
       console.error('Failed to accept application', err);
     }
@@ -132,12 +131,11 @@ export default function AMS() {
     try {
       await api.request({
         url: `/applications/${id}`,
-        method: 'PUT',
+        method: 'PATCH',
         data: { status: 'rejected' }
       });
-      setApplications(prev =>
-        prev.map(app => app.id === id ? { ...app, status: 'rejected' } : app)
-      );
+      // Update rejected status in-place
+      setApplications(prev => prev.map(app => app.id === id ? { ...app, status: 'rejected' } : app));
     } catch (err) {
       console.error('Failed to reject application', err);
     }
@@ -303,6 +301,12 @@ export default function AMS() {
                           </button>
                         </>
                       )}
+                      <a
+                        href={`mailto:${app.applicant_email}?subject=${encodeURIComponent(`Regarding your application`)}`}
+                        className="inline-flex items-center gap-2 px-4 py-2 border border-[#0e4971]/10 rounded-lg hover:bg-[#f8f7f4]"
+                      >
+                        <Mail size={16} /> Message
+                      </a>
                     </div>
                   </div>
                 </motion.div>

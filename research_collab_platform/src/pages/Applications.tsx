@@ -349,29 +349,41 @@ export default function Applications() {
                     )}
 
                     <div className="flex flex-wrap gap-3 pt-4 border-t border-[#0e4971]/5">
-                      <button
-                        type="button"
-                        disabled={terminal(app.status) || actionId === app.id}
-                        onClick={() => void updateStatus(app, "accepted")}
-                        className="flex-1 min-w-[120px] px-4 py-2 bg-[#0e4971] text-white rounded-lg hover:bg-[#0a3a5c] font-bold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {actionId === app.id ? "Saving…" : "Accept"}
-                      </button>
-                      <button
-                        type="button"
-                        disabled={terminal(app.status) || actionId === app.id}
-                        onClick={() => void updateStatus(app, "rejected")}
-                        className="flex-1 min-w-[120px] px-4 py-2 border border-[#0e4971]/20 text-[#0e4971] rounded-lg hover:bg-[#f8f7f4] font-bold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Reject
-                      </button>
-                      <a
-                        href={`mailto:${app.applicant_email}?subject=${encodeURIComponent(`Regarding your application: ${selectedPost?.title ?? "post"}`)}`}
-                        className="flex-1 min-w-[120px] inline-flex items-center justify-center gap-2 px-4 py-2 border border-[#0e4971]/20 text-[#0e4971] rounded-lg hover:bg-[#f8f7f4] font-bold text-sm transition-all"
-                      >
-                        <Users size={16} />
-                        Message
-                      </a>
+                      {!terminal(app.status) ? (
+                        <>
+                          <button
+                            type="button"
+                            disabled={actionId === app.id}
+                            onClick={() => void updateStatus(app, "accepted")}
+                            className="flex-1 min-w-[120px] px-4 py-2 bg-[#0e4971] text-white rounded-lg hover:bg-[#0a3a5c] font-bold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {actionId === app.id ? "Saving…" : "Accept"}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={actionId === app.id}
+                            onClick={() => void updateStatus(app, "rejected")}
+                            className="flex-1 min-w-[120px] px-4 py-2 border border-[#0e4971]/20 text-[#0e4971] rounded-lg hover:bg-[#f8f7f4] font-bold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            Reject
+                          </button>
+                          <a
+                            href={`mailto:${app.applicant_email}?subject=${encodeURIComponent(`Regarding your application: ${selectedPost?.title ?? "post"}`)}`}
+                            className="flex-1 min-w-[120px] inline-flex items-center justify-center gap-2 px-4 py-2 border border-[#0e4971]/20 text-[#0e4971] rounded-lg hover:bg-[#f8f7f4] font-bold text-sm transition-all"
+                          >
+                            <Users size={16} />
+                            Message
+                          </a>
+                        </>
+                      ) : (
+                        <a
+                          href={`mailto:${app.applicant_email}?subject=${encodeURIComponent(`Regarding your application: ${selectedPost?.title ?? "post"}`)}`}
+                          className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 border border-[#0e4971]/20 text-[#0e4971] rounded-lg hover:bg-[#f8f7f4] font-bold text-sm transition-all"
+                        >
+                          <Users size={16} />
+                          Message
+                        </a>
+                      )}
                     </div>
                   </div>
                 ))}

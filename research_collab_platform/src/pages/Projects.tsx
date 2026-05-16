@@ -1,7 +1,7 @@
 import { motion } from "motion/react";
-import { Plus, Briefcase, Clock, ArrowRight, Sparkles } from "lucide-react";
+import { Plus, Briefcase, Clock, ArrowRight, Sparkles, Edit3, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { getCurrentUser, projects } from "../lib/api";
 import type { ProjectSummary } from "../lib/api";
 
@@ -14,6 +14,7 @@ export default function Projects() {
 
   const isResearcher = currentUser?.role === "researcher";
   const canCreateProject = isResearcher;
+  const navigate = useNavigate();
 
   async function loadProjects() {
     if (!currentUser) {
@@ -217,7 +218,40 @@ export default function Projects() {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3">
+              <div className="flex justify-end gap-3 items-center">
+                {isResearcher && currentUser?.id === project.created_by_researcher_id && (
+                  <>
+                    <button
+                      aria-label="Edit project"
+                      title="Edit"
+                      onClick={() => {
+                        navigate(`/create-project?edit=${project.id}`);
+                      }}
+                      className="w-9 h-9 inline-flex items-center justify-center bg-white border border-[#0e4971]/10 rounded-full text-[#0e4971] hover:bg-[#f8f7f4]"
+                    >
+                      <Edit3 size={14} />
+                    </button>
+                    <button
+                      aria-label="Delete project"
+                      title="Delete"
+                      onClick={async () => {
+                        // confirm and delete
+                        if (!window.confirm(`Delete project "${project.title}"? This cannot be undone.`)) return;
+                        try {
+                          const resp = await projects.delete(project.id);
+                          if (!resp.success) throw new Error(resp.message || 'Delete failed');
+                          setProjectsList((prev) => prev.filter((p) => p.id !== project.id));
+                        } catch (err: any) {
+                          setError(err?.response?.data?.message || err?.message || 'Failed to delete project');
+                        }
+                      }}
+                      className="w-9 h-9 inline-flex items-center justify-center bg-white border border-red-200 rounded-full text-red-600 hover:bg-red-50"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </>
+                )}
+
                 <Link
                   to={`/projects/${project.id}`}
                   className="ml-auto flex items-center gap-2 text-[#f37e22] font-bold hover:gap-3 transition-all"

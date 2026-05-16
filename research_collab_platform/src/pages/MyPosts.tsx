@@ -10,6 +10,8 @@ import {
   Plus,
   Users,
   Sparkles,
+  Edit3,
+  Trash2,
 } from "lucide-react";
 import {
   getCurrentUser,
@@ -273,6 +275,29 @@ export default function MyPosts() {
     return postsList.filter((post) => post.status === filter);
   }, [filter, postsList]);
 
+  const handleDeletePost = async (post: PostItem) => {
+    const ok = window.confirm(`Delete post "${post.title}"? This cannot be undone.`);
+    if (!ok) return;
+
+    try {
+      if (post.post_type === 'recruitment') {
+        const resp = await recruitmentPosts.delete(post.id);
+        if (!resp.success) throw new Error(resp.message || 'Delete failed');
+      } else {
+        const resp = await discussionPosts.delete(post.id);
+        if (!resp.success) throw new Error(resp.message || 'Delete failed');
+      }
+      setPostsList((prev) => prev.filter((p) => p.id !== post.id));
+    } catch (err: any) {
+      setError(err?.response?.data?.message || err?.message || 'Failed to delete post');
+    }
+  };
+
+  const handleEditPost = (post: PostItem) => {
+    // Navigate to the submit page with state for editing
+    window.location.href = `/submit` + `?edit=${post.post_type}-${post.id}`;
+  };
+
   const totalApplications = useMemo(() => {
     return postsList.reduce((sum, post) => sum + (post.post_type === "recruitment" ? post.application_count : 0), 0);
   }, [postsList]);
@@ -418,6 +443,25 @@ export default function MyPosts() {
                       <div className="text-[10px] uppercase tracking-widest text-[#5b86a2] mb-2">Deadline</div>
                       <div className="font-semibold text-[#0e4971]">{formatDate(post.application_deadline)}</div>
                     </div>
+                  </div>
+                  <div className="flex items-center gap-2 mt-6">
+                    <button
+                      onClick={() => handleEditPost(post)}
+                      aria-label="Edit post"
+                      title="Edit"
+                      className="w-10 h-10 inline-flex items-center justify-center bg-white border border-[#0e4971]/10 rounded-full text-[#0e4971] hover:bg-[#f8f7f4]"
+                    >
+                      <Edit3 size={16} />
+                    </button>
+
+                    <button
+                      onClick={() => handleDeletePost(post)}
+                      aria-label="Delete post"
+                      title="Delete"
+                      className="w-10 h-10 inline-flex items-center justify-center bg-white border border-red-200 rounded-full text-red-600 hover:bg-red-50"
+                    >
+                      <Trash2 size={16} />
+                    </button>
                   </div>
                 </motion.div>
 

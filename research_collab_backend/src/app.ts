@@ -24,11 +24,20 @@ const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
 
 fs.mkdirSync(uploadDir, { recursive: true });
 
+const allowedOrigins = [clientUrl, 'http://localhost:3001', 'http://localhost:3002', 'http://192.168.56.1:3000'];
+
 app.use(cors({
-  origin: [clientUrl, 'http://localhost:3001', 'http://localhost:3002'],
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    // Allow local dev addresses (match localhost and local LAN IPs)
+    if (/^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.|10\.)/.test(origin)) return callback(null, true);
+    return callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin'],
 }));
 
 // Custom JSON serializer to handle BigInt values
