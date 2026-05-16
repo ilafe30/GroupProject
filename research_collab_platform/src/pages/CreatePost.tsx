@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Megaphone, MessageSquare, Globe, Lock, Send, Sparkles, Calendar, Users, Briefcase } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { getCurrentUser, posts, projects, recruitmentPosts, discussionPosts } from "../lib/api";
 import { SkillChipsInput } from "../components/SkillChipsInput";
 
@@ -13,6 +13,10 @@ export default function CreatePost() {
   const [privacy, setPrivacy] = useState<"public" | "private">("public");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingType, setEditingType] = useState<"recruitment" | "discussion" | null>(null);
+  const location = useLocation();
   const [availableProjects, setAvailableProjects] = useState<Array<{ id: number; title: string; category: string | null }>>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<number | "">("");
 
@@ -34,6 +38,50 @@ export default function CreatePost() {
 
   useEffect(() => {
     let mounted = true;
+
+    // Detect edit query param e.g. ?edit=recruitment-123
+    const params = new URLSearchParams(location.search || window.location.search);
+    const editParam = params.get('edit');
+    if (editParam) {
+      const [t, idStr] = editParam.split('-');
+      const id = Number(idStr || NaN);
+      if ((t === 'recruitment' || t === 'discussion') && Number.isFinite(id)) {
+        setEditing(true);
+        setEditingId(id);
+        setEditingType(t as "recruitment" | "discussion");
+        // Load post to prefill
+        (async () => {
+          try {
+            if (t === 'recruitment') {
+              const resp = await recruitmentPosts.getById(id);
+              if (resp.success && resp.data) {
+                const post = resp.data as any;
+                setType('recruitment');
+                setSelectedProjectId(post.project_id);
+                setRecruitmentTitle(post.title || '');
+                setRecruitmentDesc(post.description || '');
+                setRequiredSkillChips((post.recruitment_post_required_skills || []).map((s: any) => s.manual_skill_name || s.skills?.name).filter(Boolean));
+                setDiscussionTags((post.recruitment_post_tags || []).map((t: any) => t.tags?.name).filter(Boolean).join(' '));
+                setApplicationDeadline(post.deadline || '');
+                setCollaborationType(post.collaboration_type || 'both');
+              }
+            } else {
+              const resp = await discussionPosts.getById(id);
+              if (resp.success && resp.data) {
+                const post = resp.data as any;
+                setType('discussion');
+                setSelectedProjectId(post.project_id ?? '');
+                setDiscussionTitle(post.title || '');
+                setDiscussionDesc(post.description || '');
+                setRecruitmentTags((post.discussion_post_tags || []).map((t: any) => t.tags?.name).filter(Boolean).join(' '));
+              }
+            }
+          } catch (e) {
+            // ignore
+          }
+        })();
+      }
+    }
 
     projects.list({ status: 'open', created_by_researcher_id: currentUser?.id })
       .then((response) => {
@@ -110,35 +158,60 @@ export default function CreatePost() {
           setLoading(false);
           return;
         }
-        // NEW RECRUITMENT POST ENDPOINT
-        const response = await recruitmentPosts.create({
-          project_id: Number(selectedProjectId),
-          title: recruitmentTitle,
-          description: recruitmentDesc || null,
-          collaboration_type: collaborationType as 'student' | 'researcher' | 'both',
-          deadline: applicationDeadline ? parseDeadline(applicationDeadline) : null,
-          // Tags field on the recruitment form is bound to `discussionTags` so topic tags stay aligned with recruitment_posts.
-          tags: parseTagsFromString(discussionTags),
-          required_skills: requiredSkillChips.map((manualSkillName) => ({ source: 'manual' as const, manualSkillName })),
-        });
+        if (editing && editingType === 'recruitment' && editingId) {
+          const response = await recruitmentPosts.update(editingId, {
+            project_id: Number(selectedProjectId),
+            title: recruitmentTitle,
+            description: recruitmentDesc || null,
+            collaboration_type: collaborationType as 'student' | 'researcher' | 'both',
+            deadline: applicationDeadline ? parseDeadline(applicationDeadline) : null,
+            tags: parseTagsFromString(discussionTags),
+            required_skills: requiredSkillChips.map((manualSkillName) => ({ source: 'manual' as const, manualSkillName })),
+          });
+          if (!response.success) {
+            setError(response.message || 'Recruitment post update failed');
+            return;
+          }
+        } else {
+          const response = await recruitmentPosts.create({
+            project_id: Number(selectedProjectId),
+            title: recruitmentTitle,
+            description: recruitmentDesc || null,
+            collaboration_type: collaborationType as 'student' | 'researcher' | 'both',
+            deadline: applicationDeadline ? parseDeadline(applicationDeadline) : null,
+            tags: parseTagsFromString(discussionTags),
+            required_skills: requiredSkillChips.map((manualSkillName) => ({ source: 'manual' as const, manualSkillName })),
+          });
 
-        if (!response.success) {
-          setError(response.message || 'Recruitment post creation failed');
-          return;
+          if (!response.success) {
+            setError(response.message || 'Recruitment post creation failed');
+            return;
+          }
         }
       } else {
-        // NEW DISCUSSION POST ENDPOINT
-        const response = await discussionPosts.create({
-          project_id: selectedProjectId ? Number(selectedProjectId) : null,
-          title: discussionTitle,
-          description: discussionDesc || null,
-          // Tags field on the discussion form is bound to `recruitmentTags` so topic tags stay aligned with discussion_posts.
-          tags: parseTagsFromString(recruitmentTags),
-        });
+        if (editing && editingType === 'discussion' && editingId) {
+          const response = await discussionPosts.update(editingId, {
+            project_id: selectedProjectId ? Number(selectedProjectId) : null,
+            title: discussionTitle,
+            description: discussionDesc || null,
+            tags: parseTagsFromString(recruitmentTags),
+          });
+          if (!response.success) {
+            setError(response.message || 'Discussion post update failed');
+            return;
+          }
+        } else {
+          const response = await discussionPosts.create({
+            project_id: selectedProjectId ? Number(selectedProjectId) : null,
+            title: discussionTitle,
+            description: discussionDesc || null,
+            tags: parseTagsFromString(recruitmentTags),
+          });
 
-        if (!response.success) {
-          setError(response.message || 'Discussion post creation failed');
-          return;
+          if (!response.success) {
+            setError(response.message || 'Discussion post creation failed');
+            return;
+          }
         }
       }
 

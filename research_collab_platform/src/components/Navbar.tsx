@@ -1,12 +1,14 @@
 import { Link } from "react-router-dom";
 import { Search, User, LogOut, Menu, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { auth, getCurrentUser } from "../lib/api";
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [, setAuthEpoch] = useState(0);
+  const [logoutOpen, setLogoutOpen] = useState(false);
+  const logoutRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const onAuth = () => setAuthEpoch((n) => n + 1);
@@ -28,6 +30,18 @@ export default function Navbar() {
     localStorage.removeItem("role");
     window.location.href = "/";
   };
+
+  useEffect(() => {
+    if (!logoutOpen) return;
+    const onDocClick = (ev: MouseEvent) => {
+      const target = ev.target as Node | null;
+      if (logoutRef.current && target && !logoutRef.current.contains(target)) {
+        setLogoutOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [logoutOpen]);
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-[#f8f7f4]/80 backdrop-blur-md border-b border-[#0e4971]/10">
@@ -78,12 +92,34 @@ export default function Navbar() {
                 <Link to="/profile" className="p-2 text-[#0e4971] hover:bg-[#0e4971]/5 rounded-full transition-colors">
                   <User size={20} />
                 </Link>
-                <button 
-                  onClick={handleLogout}
-                  className="p-2 text-[#0e4971] hover:bg-[#0e4971]/5 rounded-full transition-colors"
-                >
-                  <LogOut size={20} />
-                </button>
+                <div className="relative" ref={logoutRef}>
+                  <button 
+                    onClick={() => setLogoutOpen((s) => !s)}
+                    className="p-2 text-[#0e4971] hover:bg-[#0e4971]/5 rounded-full transition-colors"
+                    aria-haspopup="true"
+                    aria-expanded={logoutOpen}
+                  >
+                    <LogOut size={20} />
+                  </button>
+
+                  <AnimatePresence>
+                    {logoutOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                        className="hidden md:block absolute right-0 mt-2 w-56 bg-white rounded-xl p-3 shadow-lg z-50"
+                      >
+                        <h4 className="text-sm font-semibold text-[#0e4971]">Confirm logout</h4>
+                        <p className="text-xs text-[#5b86a2] mt-1">Are you sure you want to sign out?</p>
+                        <div className="flex justify-end gap-2 mt-3">
+                          <button onClick={() => setLogoutOpen(false)} className="px-3 py-1 rounded-full border border-[#0e4971]/10 text-sm">Cancel</button>
+                          <button onClick={() => { setLogoutOpen(false); void handleLogout(); }} className="px-3 py-1 rounded-full bg-[#0e4971] text-white text-sm">Log out</button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
 
               </div>
             )}
@@ -131,10 +167,36 @@ export default function Navbar() {
                     <Link to="/signup" className="w-full text-center py-2 text-sm font-medium text-white bg-[#0e4971] rounded-full">Sign up</Link>
                   </>
                 ) : (
-                  <button onClick={handleLogout} className="w-full text-center py-2 text-sm font-medium text-white bg-[#0e4971] rounded-full">Log out</button>
+                  <button onClick={() => setLogoutOpen(true)} className="w-full text-center py-2 text-sm font-medium text-white bg-[#0e4971] rounded-full">Log out</button>
                 )}
               </div>
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {/* Mobile fullscreen confirm modal (keeps previous UX) */}
+      <AnimatePresence>
+        {logoutOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center md:hidden"
+          >
+            <div className="absolute inset-0 bg-black/40" onClick={() => setLogoutOpen(false)} />
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-2xl p-6 w-full max-w-md mx-4 shadow-2xl z-10"
+            >
+              <h3 className="text-lg font-semibold text-[#0e4971] mb-2">Confirm logout</h3>
+              <p className="text-sm text-[#5b86a2] mb-6">Are you sure you want to sign out? You will need to log in again to access your account.</p>
+              <div className="flex justify-end gap-3">
+                <button onClick={() => setLogoutOpen(false)} className="px-4 py-2 rounded-full border border-[#0e4971]/10 text-sm font-medium">Cancel</button>
+                <button onClick={() => { setLogoutOpen(false); void handleLogout(); }} className="px-4 py-2 rounded-full bg-[#0e4971] text-white font-semibold">Log out</button>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

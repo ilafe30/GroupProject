@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { Search, Check, X, Sparkles, AlertCircle } from "lucide-react";
+import { Search, Check, X, Sparkles, AlertCircle, Mail } from "lucide-react";
 import { useState, useEffect } from "react";
 import { api } from "../lib/api";
 
@@ -77,8 +77,7 @@ export default function AMS() {
         });
 
         const appData = (response.data as Application[]) || [];
-        // Only show pending applications
-        setApplications(appData.filter(a => !['accepted', 'rejected', 'withdrawn'].includes(a.status)));
+        setApplications(appData);
       } catch (err) {
         setError('Failed to fetch applications');
         console.error(err);
@@ -121,8 +120,8 @@ export default function AMS() {
         method: 'PATCH',
         data: { status: 'accepted' }
       });
-      // Remove accepted applicant from list
-      setApplications(prev => prev.filter(app => app.id !== id));
+      // Update accepted status in-place
+      setApplications(prev => prev.map(app => app.id === id ? { ...app, status: 'accepted' } : app));
     } catch (err) {
       console.error('Failed to accept application', err);
     }
@@ -135,8 +134,8 @@ export default function AMS() {
         method: 'PATCH',
         data: { status: 'rejected' }
       });
-      // Remove rejected applicant from list
-      setApplications(prev => prev.filter(app => app.id !== id));
+      // Update rejected status in-place
+      setApplications(prev => prev.map(app => app.id === id ? { ...app, status: 'rejected' } : app));
     } catch (err) {
       console.error('Failed to reject application', err);
     }
@@ -302,6 +301,12 @@ export default function AMS() {
                           </button>
                         </>
                       )}
+                      <a
+                        href={`mailto:${app.applicant_email}?subject=${encodeURIComponent(`Regarding your application`)}`}
+                        className="inline-flex items-center gap-2 px-4 py-2 border border-[#0e4971]/10 rounded-lg hover:bg-[#f8f7f4]"
+                      >
+                        <Mail size={16} /> Message
+                      </a>
                     </div>
                   </div>
                 </motion.div>
