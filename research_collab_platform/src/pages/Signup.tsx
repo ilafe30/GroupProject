@@ -14,7 +14,8 @@ type StepId = "role" | "upload" | "extracting" | "review" | "done";
 const STEPS: StepId[] = ["role", "upload", "extracting", "review", "done"];
 const STEP_LABELS      = ["Role", "Upload CV", "Extracting", "Review", "Done"];
 
-const BACKEND_URL = "http://localhost:5000";
+const BACKEND_URL    = "http://localhost:5000";  // Node.js server (auth, projects...)
+const EXTRACTOR_URL  = "http://localhost:5001";  // Python Flask (CV extraction)
 
 /* ─────────────────────────────────────────────────────────────
    Small reusable components
@@ -178,7 +179,7 @@ export default function Signup() {
       setLog("Uploading your CV…");
       const fd = new FormData();
       fd.append("file", file);
-      const res = await fetch(`${BACKEND_URL}/extract`, { method: "POST", body: fd });
+      const res = await fetch(`${EXTRACTOR_URL}/extract`, {method: "POST", body: fd,});
       setLog("Claude is reading your CV…");
       if (!res.ok) {
         const e = await res.json().catch(() => ({}));
