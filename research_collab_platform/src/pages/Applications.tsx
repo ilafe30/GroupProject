@@ -92,7 +92,8 @@ export default function Applications() {
         if (!response.success || !Array.isArray(response.data)) {
           throw new Error(response.message || "Failed to load applications");
         }
-        setApplicants(response.data);
+        // Only show pending applications to the owner (hide accepted/rejected/withdrawn)
+        setApplicants(response.data.filter((a: PostApplicationApplicantRow) => !["accepted", "rejected", "withdrawn"].includes(a.status)));
       } catch (err: unknown) {
         if (!cancelled) {
           const e = err as { response?: { data?: { message?: string } }; message?: string };
@@ -143,7 +144,7 @@ export default function Applications() {
         refreshSummaries(),
       ]);
       if (appsResp.success && Array.isArray(appsResp.data)) {
-        setApplicants(appsResp.data);
+        setApplicants(appsResp.data.filter((a: PostApplicationApplicantRow) => !["accepted", "rejected", "withdrawn"].includes(a.status)));
       }
     } catch (err: unknown) {
       const e = err as { response?: { data?: { message?: string } }; message?: string };

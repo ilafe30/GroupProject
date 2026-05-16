@@ -77,7 +77,8 @@ export default function AMS() {
         });
 
         const appData = (response.data as Application[]) || [];
-        setApplications(appData);
+        // Only show pending applications
+        setApplications(appData.filter(a => !['accepted', 'rejected', 'withdrawn'].includes(a.status)));
       } catch (err) {
         setError('Failed to fetch applications');
         console.error(err);
@@ -117,12 +118,11 @@ export default function AMS() {
     try {
       await api.request({
         url: `/applications/${id}`,
-        method: 'PUT',
+        method: 'PATCH',
         data: { status: 'accepted' }
       });
-      setApplications(prev =>
-        prev.map(app => app.id === id ? { ...app, status: 'accepted' } : app)
-      );
+      // Remove accepted applicant from list
+      setApplications(prev => prev.filter(app => app.id !== id));
     } catch (err) {
       console.error('Failed to accept application', err);
     }
@@ -132,12 +132,11 @@ export default function AMS() {
     try {
       await api.request({
         url: `/applications/${id}`,
-        method: 'PUT',
+        method: 'PATCH',
         data: { status: 'rejected' }
       });
-      setApplications(prev =>
-        prev.map(app => app.id === id ? { ...app, status: 'rejected' } : app)
-      );
+      // Remove rejected applicant from list
+      setApplications(prev => prev.filter(app => app.id !== id));
     } catch (err) {
       console.error('Failed to reject application', err);
     }
