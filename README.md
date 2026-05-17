@@ -1,6 +1,6 @@
 # Research Collaboration Platform
 
-Full-stack app (React + Node + Prisma + MySQL).
+Full-stack app (React + Node + Prisma + MySQL) .
 
 1. Clone repo: git clone https://github.com/ilafe30/GroupProject.git
 2. Backend: cd research_collab_backend
